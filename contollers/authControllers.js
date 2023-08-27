@@ -3,6 +3,8 @@ const controllerWrapper = require("../helpers/controllerWrapper");
 const errorHandler = require("../helpers/errorsHandler");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const fs = require("fs/promises");
+const path = require("path");
 
 const { SECRET_KEY } = process.env;
 
@@ -81,10 +83,33 @@ const updateSubscriptionContact = async (req, res) => {
   res.status(200).json(contact);
 };
 
+const uploadAvatar = async (req, res, next) => {
+  console.log(req.file);
+  try {
+    await fs.rename(
+      req.file.path,
+      path.join(__dirname, "../", "public/avatars", req.file.filename)
+    );
+    const result = await User.findByIdAndUpdate(
+      req.user.id,
+      { avatar: req.file.filename },
+      { new: true }
+    );
+
+    if (!result) {
+      throw errorHandler(404, "User not found");
+    }
+    res.send(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register: controllerWrapper(register),
   login: controllerWrapper(login),
   getCurrent: controllerWrapper(getCurrent),
   logOut: controllerWrapper(logOut),
   updateSubscriptionContact: controllerWrapper(updateSubscriptionContact),
+  uploadAvatar: controllerWrapper(uploadAvatar),
 };
