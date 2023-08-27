@@ -1,20 +1,32 @@
-const contacts = require("../models/contactsBL");
 const controllerWrapper = require("../helpers/controllerWrapper");
 const errorHandler = require("../helpers/errorsHandler");
+const { Contact } = require("../models/contactModel");
 
 const listContacts = async (req, res) => {
-  const result = await contacts.listContacts();
+  const { _id: owner } = req.user;
+  const { page = 1, limit = 10 } = req.query;
+  const skip = (page - 1) * limit;
+
+  const { favorite } = req.query;
+  console.log(req.query);
+  if (favorite) {
+    const result = await Contact.find({ owner, favorite })
+      .skip(skip)
+      .limit(limit)
+      .populate("owner", "name email");
+    res.json(result);
+  }
+  const result = await Contact.find({ owner })
+    .skip(skip)
+    .limit(limit)
+    .populate("owner", "name email");
   res.json(result);
-  // try {
-  //   const docs = await Contact.find().exec();
-  //   res.json(docs);
-  // } catch (error) {
-  //   throw errorHandler(404, "Not found");
-  // }
 };
 
 const getContactById = async (req, res) => {
-  const contact = await contacts.getContactById(req.params.contactId);
+  const { contactId } = req.params;
+  console.log(req.params);
+  const contact = await Contact.findById(contactId);
 
   if (!contact) {
     throw errorHandler(404, "Not found");
@@ -23,54 +35,38 @@ const getContactById = async (req, res) => {
 };
 
 const removeContact = async (req, res) => {
-  const contact = await contacts.removeContact(req.params.contactId);
-  console.log(contact);
-  if (!contact) {
+  const { contactId } = req.params;
+  const result = await Contact.findByIdAndDelete(contactId);
+  if (!result) {
     throw errorHandler(404, "Not found");
   }
   res.json({ message: "contact deleted" });
 };
 
 const addContact = async (req, res) => {
-  console.log(req.body);
-  const contact = await contacts.addContact(req.body);
-
-  if (Object.keys(req.body).length === 0) {
-    throw errorHandler(400, "missing fields");
-  }
-
+  const { _id: owner } = req.user;
+  console.log(req.user);
+  const contact = await Contact.create({ ...req.body, owner });
   res.status(201).json(contact);
 };
 
 const updateContact = async (req, res) => {
-  const contact = await contacts.updateContact(req.params.contactId, req.body);
-  // console.log(contact);
+  const { contactId } = req.params;
 
-  // console.log(`contact: ${contact}`);
-  // if (contact === null) {
-  //   throw errorHandler(404, "Not found");
-  // }
+  const contact = await Contact.findByIdAndUpdate(contactId, req.body, {
+    new: true,
+  });
   if (!contact) {
     throw errorHandler(404, "Not Found");
   }
-
-  // if (typeof contact === "string") {
-  //   console.log(contact);
-
-  //   if (contact === "must be a string") {
-  //     throw errorHandler(400, contact);
-  //   }
-  //   const errorMessage = `missing required ${contact} field`;
-  //   throw errorHandler(400, errorMessage);
-  // }
   res.status(200).json(contact);
 };
 
 const updateStatusContact = async (req, res) => {
-  const contact = await contacts.updateStatusContact(
-    req.params.contactId,
-    req.body
-  );
+  const { contactId } = req.params;
+  const contact = await Contact.findByIdAndUpdate(contactId, req.body, {
+    new: true,
+  });
   if (!contact) {
     throw errorHandler(404, "Not Found");
   }
