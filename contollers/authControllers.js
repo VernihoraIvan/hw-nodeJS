@@ -1,3 +1,5 @@
+const gravatar = require("gravatar");
+const Jimp = require("jimp");
 const { User } = require("../models/userModel");
 const controllerWrapper = require("../helpers/controllerWrapper");
 const errorHandler = require("../helpers/errorsHandler");
@@ -16,8 +18,13 @@ const register = async (req, res) => {
   }
 
   const hashPassword = await bcrypt.hash(password, 10);
+  const avatarURL = gravatar.url(email);
 
-  const newUser = await User.create({ ...req.body, password: hashPassword });
+  const newUser = await User.create({
+    ...req.body,
+    password: hashPassword,
+    avatarURL,
+  });
   res.status(201).json({
     user: {
       email: newUser.email,
@@ -84,22 +91,34 @@ const updateSubscriptionContact = async (req, res) => {
 };
 
 const uploadAvatar = async (req, res, next) => {
-  console.log(req.file);
+  const { _id } = req.user;
+  const { filename } = req.file;
+
+  const fileName = `${_id}-${req.file.filename}`;
+  const fileNamePath = path.join(__dirname, "../", "tmp", filename);
+  const newFileNamePath = path.join(
+    __dirname,
+    "../",
+    "public/avatars",
+    fileName
+  );
   try {
-    await fs.rename(
-      req.file.path,
-      path.join(__dirname, "../", "public/avatars", req.file.filename)
-    );
+    const avatar = await Jimp.read(fileNamePath);
+    avatar.resize(250, 250).quality(70).write(newFileNamePath);
+    const avatarURL = path.join("avatars", fileName);
+    console.log(fileName);
+
+    await fs.rename(fileNamePath, newFileNamePath);
     const result = await User.findByIdAndUpdate(
       req.user.id,
-      { avatar: req.file.filename },
+      { avatarURL },
       { new: true }
     );
 
     if (!result) {
       throw errorHandler(404, "User not found");
     }
-    res.send(result);
+    res.json({ avatarURL: avatarURL });
   } catch (error) {
     next(error);
   }
