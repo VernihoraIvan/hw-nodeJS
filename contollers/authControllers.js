@@ -5,7 +5,6 @@ const controllerWrapper = require("../helpers/controllerWrapper");
 const errorHandler = require("../helpers/errorsHandler");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const fs = require("fs/promises");
 const path = require("path");
 
 const { SECRET_KEY } = process.env;
@@ -40,7 +39,6 @@ const login = async (req, res) => {
     throw errorHandler(401, "Email or password invalid");
   }
   const comparePassword = await bcrypt.compare(password, user.password);
-  console.log(`comparePassword ${comparePassword}`);
   if (!comparePassword) {
     throw errorHandler(401, "Email or password is wrong");
   }
@@ -67,7 +65,6 @@ const getCurrent = async (req, res) => {
 };
 
 const logOut = async (req, res) => {
-  console.log(req.user);
   const { _id } = req.user;
   await User.findByIdAndUpdate(_id, { token: "" });
   res.status(204).end();
@@ -75,8 +72,6 @@ const logOut = async (req, res) => {
 const updateSubscriptionContact = async (req, res) => {
   const { subscription } = req.body;
   const { _id } = req.user;
-  console.log(_id);
-  console.log(subscription);
   const contact = await User.findByIdAndUpdate(
     _id,
     { subscription },
@@ -106,19 +101,16 @@ const uploadAvatar = async (req, res, next) => {
     const avatar = await Jimp.read(fileNamePath);
     avatar.resize(250, 250).quality(70).write(newFileNamePath);
     const avatarURL = path.join("avatars", fileName);
-    console.log(fileName);
-
-    await fs.rename(fileNamePath, newFileNamePath);
     const result = await User.findByIdAndUpdate(
       req.user.id,
-      { avatarURL },
+      { avatarURL: avatarURL },
       { new: true }
     );
 
     if (!result) {
       throw errorHandler(404, "User not found");
     }
-    res.json({ avatarURL: avatarURL });
+    res.json({ avatarURL: fileName });
   } catch (error) {
     next(error);
   }
