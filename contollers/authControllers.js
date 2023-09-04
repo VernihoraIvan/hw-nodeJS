@@ -6,6 +6,7 @@ const errorHandler = require("../helpers/errorsHandler");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const path = require("path");
+const fs = require("fs/promises");
 
 const { SECRET_KEY } = process.env;
 
@@ -99,7 +100,10 @@ const uploadAvatar = async (req, res, next) => {
   );
   try {
     const avatar = await Jimp.read(fileNamePath);
-    avatar.resize(250, 250).quality(70).write(newFileNamePath);
+    avatar.resize(250, 250).quality(70).write(fileNamePath);
+
+    await fs.rename(fileNamePath, newFileNamePath);
+
     const avatarURL = path.join("avatars", fileName);
     const result = await User.findByIdAndUpdate(
       req.user.id,
