@@ -105,6 +105,8 @@ const uploadAvatar = async (req, res, next) => {
     await fs.rename(fileNamePath, newFileNamePath);
 
     const avatarURL = path.join("avatars", fileName);
+    console.log(fileName);
+    console.log(avatarURL);
     const result = await User.findByIdAndUpdate(
       req.user.id,
       { avatarURL: avatarURL },
@@ -114,7 +116,7 @@ const uploadAvatar = async (req, res, next) => {
     if (!result) {
       throw errorHandler(404, "User not found");
     }
-    res.json({ avatarURL: fileName });
+    res.json({ avatarURL: avatarURL });
   } catch (error) {
     next(error);
   }
