@@ -8,7 +8,6 @@ const listContacts = async (req, res) => {
   const skip = (page - 1) * limit;
 
   const { favorite } = req.query;
-  console.log(req.query);
   if (favorite) {
     const result = await Contact.find({ owner, favorite })
       .skip(skip)
@@ -25,7 +24,6 @@ const listContacts = async (req, res) => {
 
 const getContactById = async (req, res) => {
   const { contactId } = req.params;
-  console.log(req.params);
   const contact = await Contact.findById(contactId);
 
   if (!contact) {
@@ -45,7 +43,6 @@ const removeContact = async (req, res) => {
 
 const addContact = async (req, res) => {
   const { _id: owner } = req.user;
-  console.log(req.user);
   const contact = await Contact.create({ ...req.body, owner });
   res.status(201).json(contact);
 };
