@@ -6,24 +6,45 @@ const errorHandler = require("../helpers/errorsHandler");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const path = require("path");
+const fs = require("fs/promises");
+const crypto = require("crypto");
+
+const sendEmail = require("../helpers/sendEmail");
 
 const { SECRET_KEY } = process.env;
 
 const register = async (req, res) => {
-  const { email, password } = req.body;
+  const { name, email, password } = req.body;
   const user = await User.findOne({ email });
   if (user) {
     throw errorHandler(409, "Email in use");
   }
 
   const hashPassword = await bcrypt.hash(password, 10);
+  const verifyToken = crypto.randomUUID();
   const avatarURL = gravatar.url(email);
 
   const newUser = await User.create({
     ...req.body,
     password: hashPassword,
     avatarURL,
+    verifyToken,
   });
+
+  sendEmail({
+    to: email,
+    subject: `welcome onboard ${name}`,
+    html: `
+        <p>To confirm your registration, please click on the link below:</p>
+        <a href="http://localhost:3000/api/auth/verify/${verifyToken}">Click me</a>
+        
+      `,
+    text: `
+        To confirm your registration, please click on the link below:\n
+        http://localhost:3000/api/auth/verify/${verifyToken}
+      `,
+  });
+
   res.status(201).json({
     user: {
       email: newUser.email,
@@ -99,8 +120,13 @@ const uploadAvatar = async (req, res, next) => {
   );
   try {
     const avatar = await Jimp.read(fileNamePath);
-    avatar.resize(250, 250).quality(70).write(newFileNamePath);
+    avatar.resize(250, 250).quality(70).write(fileNamePath);
+
+    await fs.rename(fileNamePath, newFileNamePath);
+
     const avatarURL = path.join("avatars", fileName);
+    console.log(fileName);
+    console.log(avatarURL);
     const result = await User.findByIdAndUpdate(
       req.user.id,
       { avatarURL: avatarURL },
@@ -110,7 +136,7 @@ const uploadAvatar = async (req, res, next) => {
     if (!result) {
       throw errorHandler(404, "User not found");
     }
-    res.json({ avatarURL: fileName });
+    res.json({ avatarURL: avatarURL });
   } catch (error) {
     next(error);
   }
