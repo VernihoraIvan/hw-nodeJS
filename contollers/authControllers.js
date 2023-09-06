@@ -21,28 +21,28 @@ const register = async (req, res) => {
   }
 
   const hashPassword = await bcrypt.hash(password, 10);
-  const verifyToken = crypto.randomUUID();
+  const verificationToken = crypto.randomUUID();
   const avatarURL = gravatar.url(email);
 
   const newUser = await User.create({
     ...req.body,
     password: hashPassword,
     avatarURL,
-    verifyToken,
+    verificationToken,
   });
 
-  sendEmail({
+  await sendEmail({
     to: email,
     subject: `welcome onboard ${name}`,
     html: `
         <p>To confirm your registration, please click on the link below:</p>
-        <a href="http://localhost:3000/api/auth/verify/${verifyToken}">Click me</a>
-        
+        <a href="http://localhost:3000/users/verify/${verificationToken}">Click me</a>
+
       `,
-    text: `
-        To confirm your registration, please click on the link below:\n
-        http://localhost:3000/api/auth/verify/${verifyToken}
-      `,
+    // text: `
+    //     To confirm your registration, please click on the link below:\n
+    //     http://localhost:3000/api/auth/verify/${verificationToken}
+    //   `,
   });
 
   res.status(201).json({
@@ -51,6 +51,24 @@ const register = async (req, res) => {
       subscription: newUser.subscription,
     },
   });
+};
+
+const verify = async (req, res, next) => {
+  const { verificationToken } = req.params;
+  try {
+    const user = await User.findOne({ verificationToken }).exec();
+    if (user === null) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+
+    await User.findByIdAndUpdate(user._id, {
+      verify: true,
+      verificationToken: null,
+    });
+    res.json({ message: "User verified" });
+  } catch (error) {
+    next(error);
+  }
 };
 
 const login = async (req, res) => {
@@ -149,4 +167,5 @@ module.exports = {
   logOut: controllerWrapper(logOut),
   updateSubscriptionContact: controllerWrapper(updateSubscriptionContact),
   uploadAvatar: controllerWrapper(uploadAvatar),
+  verify: controllerWrapper(verify),
 };

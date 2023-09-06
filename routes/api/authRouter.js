@@ -15,6 +15,8 @@ router.patch(
   controllers.uploadAvatar
 );
 
+router.get("/users/verify/:verificationToken", controllers.verify);
+
 router.post(
   "/register",
   validateBody(schemas.registerSchema),
