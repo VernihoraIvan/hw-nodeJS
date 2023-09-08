@@ -60,7 +60,16 @@ const subscriptionSchema = Joi.object({
   subscription: Joi.string().valid("starter", "pro", "business").required(),
 });
 
-const schemas = { registerSchema, loginSchema, subscriptionSchema };
+const verifySchema = Joi.object({
+  email: Joi.string().pattern(EMAIL_PATTERN).required(),
+});
+
+const schemas = {
+  registerSchema,
+  loginSchema,
+  subscriptionSchema,
+  verifySchema,
+};
 const User = mongoose.model("users", userSchema);
 
 module.exports = { User, schemas };

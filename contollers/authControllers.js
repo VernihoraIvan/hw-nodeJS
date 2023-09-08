@@ -39,10 +39,10 @@ const register = async (req, res) => {
         <a href="http://localhost:3000/users/verify/${verificationToken}">Click me</a>
 
       `,
-    // text: `
-    //     To confirm your registration, please click on the link below:\n
-    //     http://localhost:3000/api/auth/verify/${verificationToken}
-    //   `,
+    text: `
+        To confirm your registration, please click on the link below:\n
+        http://localhost:3000/auth/verify/${verificationToken}
+      `,
   });
 
   res.status(201).json({
@@ -53,19 +53,54 @@ const register = async (req, res) => {
   });
 };
 
+const reverify = async (req, res, next) => {
+  const { name, email } = req.body;
+
+  const verificationToken = crypto.randomUUID();
+  const user = await User.findOne({ email });
+
+  if (user.verify) {
+    throw errorHandler(400, "Verification has already been passed");
+  }
+  if (!user) {
+    throw errorHandler(400, "missing required field email");
+  }
+  await User.findOneAndUpdate(email, {
+    verificationToken,
+  });
+
+  await sendEmail({
+    to: email,
+    subject: `welcome onboard ${name}`,
+    html: `
+        <p>To confirm your registration, please click on the link below:</p>
+        <a href="http://localhost:3000/users/verify/${verificationToken}">Click me</a>
+
+      `,
+    text: `
+        To confirm your registration, please click on the link below:\n
+        http://localhost:3000/auth/verify/${verificationToken}
+      `,
+  });
+  res.json({ message: "Verification email sent" });
+};
+
 const verify = async (req, res, next) => {
   const { verificationToken } = req.params;
   try {
     const user = await User.findOne({ verificationToken }).exec();
-    if (user === null) {
-      return res.status(401).json({ message: "Invalid token" });
+    if (!user) {
+      throw errorHandler(401, "Invalid token");
+    }
+    if (user.verify === true) {
+      throw errorHandler(404, "Not Found");
     }
 
     await User.findByIdAndUpdate(user._id, {
       verify: true,
       verificationToken: null,
     });
-    res.json({ message: "User verified" });
+    res.json({ message: "Verification successful" });
   } catch (error) {
     next(error);
   }
@@ -76,6 +111,10 @@ const login = async (req, res) => {
   const user = await User.findOne({ email });
   if (!user) {
     throw errorHandler(401, "Email or password invalid");
+  }
+
+  if (user.verify !== true) {
+    throw errorHandler(401, "Please, verify your account");
   }
   const comparePassword = await bcrypt.compare(password, user.password);
   if (!comparePassword) {
@@ -142,9 +181,7 @@ const uploadAvatar = async (req, res, next) => {
 
     await fs.rename(fileNamePath, newFileNamePath);
 
-    const avatarURL = path.join("avatars", fileName);
-    console.log(fileName);
-    console.log(avatarURL);
+    const avatarURL = path.join("avatars", fileName); 
     const result = await User.findByIdAndUpdate(
       req.user.id,
       { avatarURL: avatarURL },
@@ -168,4 +205,5 @@ module.exports = {
   updateSubscriptionContact: controllerWrapper(updateSubscriptionContact),
   uploadAvatar: controllerWrapper(uploadAvatar),
   verify: controllerWrapper(verify),
+  reverify: controllerWrapper(reverify),
 };
