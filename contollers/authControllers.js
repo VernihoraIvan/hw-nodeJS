@@ -1,8 +1,5 @@
 const gravatar = require("gravatar");
 const Jimp = require("jimp");
-const { User } = require("../models/userModel");
-const controllerWrapper = require("../helpers/controllerWrapper");
-const errorHandler = require("../helpers/errorsHandler");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const path = require("path");
@@ -10,6 +7,10 @@ const fs = require("fs/promises");
 const crypto = require("crypto");
 
 const sendEmail = require("../helpers/sendEmail");
+
+const { User } = require("../models/userModel");
+const controllerWrapper = require("../helpers/controllerWrapper");
+const errorHandler = require("../helpers/errorsHandler");
 
 const { SECRET_KEY } = process.env;
 

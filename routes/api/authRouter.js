@@ -5,6 +5,7 @@ const authenticate = require("../../middleware/authenticate");
 const { upload } = require("../../middleware/upload");
 const validateBody = require("../../middleware/validateBody");
 const { schemas } = require("../../models/userModel");
+const sendEmail = require("../../helpers/sendEmail");
 
 const router = express.Router();
 
@@ -26,7 +27,8 @@ router.post(
 router.post(
   "/register",
   validateBody(schemas.registerSchema),
-  controllers.register
+  controllers.register,
+  sendEmail
 );
 
 router.patch(
