@@ -12,6 +12,7 @@ const { User } = require("../models/userModel");
 const controllerWrapper = require("../helpers/controllerWrapper");
 const errorHandler = require("../helpers/errorsHandler");
 
+
 const { SECRET_KEY } = process.env;
 
 const register = async (req, res) => {
@@ -183,6 +184,7 @@ const uploadAvatar = async (req, res, next) => {
     await fs.rename(fileNamePath, newFileNamePath);
 
     const avatarURL = path.join("avatars", fileName); 
+
     const result = await User.findByIdAndUpdate(
       req.user.id,
       { avatarURL: avatarURL },
