@@ -12,7 +12,6 @@ const { User } = require("../models/userModel");
 const controllerWrapper = require("../helpers/controllerWrapper");
 const errorHandler = require("../helpers/errorsHandler");
 
-
 const { SECRET_KEY } = process.env;
 
 const register = async (req, res) => {
@@ -58,7 +57,6 @@ const register = async (req, res) => {
 const reverify = async (req, res, next) => {
   const { name, email } = req.body;
 
-  const verificationToken = crypto.randomUUID();
   const user = await User.findOne({ email });
 
   if (user.verify) {
@@ -67,21 +65,18 @@ const reverify = async (req, res, next) => {
   if (!user) {
     throw errorHandler(400, "missing required field email");
   }
-  await User.findOneAndUpdate(email, {
-    verificationToken,
-  });
 
   await sendEmail({
     to: email,
     subject: `welcome onboard ${name}`,
     html: `
         <p>To confirm your registration, please click on the link below:</p>
-        <a href="http://localhost:3000/users/verify/${verificationToken}">Click me</a>
+        <a href="http://localhost:3000/users/verify/${user.verificationToken}">Click me</a>
 
       `,
     text: `
         To confirm your registration, please click on the link below:\n
-        http://localhost:3000/auth/verify/${verificationToken}
+        http://localhost:3000/auth/verify/${user.verificationToken}
       `,
   });
   res.json({ message: "Verification email sent" });
@@ -183,7 +178,7 @@ const uploadAvatar = async (req, res, next) => {
 
     await fs.rename(fileNamePath, newFileNamePath);
 
-    const avatarURL = path.join("avatars", fileName); 
+    const avatarURL = path.join("avatars", fileName);
 
     const result = await User.findByIdAndUpdate(
       req.user.id,

@@ -19,7 +19,7 @@ router.patch(
 router.get("/verify/:verificationToken", controllers.verify);
 
 router.post(
-  "/verify/:verificationToken",
+  "/verify",
   validateBody(schemas.verifySchema),
   controllers.reverify
 );
