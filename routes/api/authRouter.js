@@ -5,6 +5,7 @@ const authenticate = require("../../middleware/authenticate");
 const { upload } = require("../../middleware/upload");
 const validateBody = require("../../middleware/validateBody");
 const { schemas } = require("../../models/userModel");
+const sendEmail = require("../../helpers/sendEmail");
 
 const router = express.Router();
 
@@ -15,10 +16,19 @@ router.patch(
   controllers.uploadAvatar
 );
 
+router.get("/verify/:verificationToken", controllers.verify);
+
+router.post(
+  "/verify",
+  validateBody(schemas.verifySchema),
+  controllers.reverify
+);
+
 router.post(
   "/register",
   validateBody(schemas.registerSchema),
-  controllers.register
+  controllers.register,
+  sendEmail
 );
 
 router.patch(

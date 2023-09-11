@@ -1,30 +1,51 @@
 const gravatar = require("gravatar");
 const Jimp = require("jimp");
-const { User } = require("../models/userModel");
-const controllerWrapper = require("../helpers/controllerWrapper");
-const errorHandler = require("../helpers/errorsHandler");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const path = require("path");
 const fs = require("fs/promises");
+const crypto = require("crypto");
+
+const sendEmail = require("../helpers/sendEmail");
+
+const { User } = require("../models/userModel");
+const controllerWrapper = require("../helpers/controllerWrapper");
+const errorHandler = require("../helpers/errorsHandler");
 
 const { SECRET_KEY } = process.env;
 
 const register = async (req, res) => {
-  const { email, password } = req.body;
+  const { name, email, password } = req.body;
   const user = await User.findOne({ email });
   if (user) {
     throw errorHandler(409, "Email in use");
   }
 
   const hashPassword = await bcrypt.hash(password, 10);
+  const verificationToken = crypto.randomUUID();
   const avatarURL = gravatar.url(email);
 
   const newUser = await User.create({
     ...req.body,
     password: hashPassword,
     avatarURL,
+    verificationToken,
   });
+
+  await sendEmail({
+    to: email,
+    subject: `welcome onboard ${name}`,
+    html: `
+        <p>To confirm your registration, please click on the link below:</p>
+        <a href="http://localhost:3000/users/verify/${verificationToken}">Click me</a>
+
+      `,
+    text: `
+        To confirm your registration, please click on the link below:\n
+        http://localhost:3000/auth/verify/${verificationToken}
+      `,
+  });
+
   res.status(201).json({
     user: {
       email: newUser.email,
@@ -33,11 +54,64 @@ const register = async (req, res) => {
   });
 };
 
+const reverify = async (req, res, next) => {
+  const { name, email } = req.body;
+
+  const user = await User.findOne({ email });
+
+  if (user.verify) {
+    throw errorHandler(400, "Verification has already been passed");
+  }
+  if (!user) {
+    throw errorHandler(400, "missing required field email");
+  }
+
+  await sendEmail({
+    to: email,
+    subject: `welcome onboard ${name}`,
+    html: `
+        <p>To confirm your registration, please click on the link below:</p>
+        <a href="http://localhost:3000/users/verify/${user.verificationToken}">Click me</a>
+
+      `,
+    text: `
+        To confirm your registration, please click on the link below:\n
+        http://localhost:3000/auth/verify/${user.verificationToken}
+      `,
+  });
+  res.json({ message: "Verification email sent" });
+};
+
+const verify = async (req, res, next) => {
+  const { verificationToken } = req.params;
+  try {
+    const user = await User.findOne({ verificationToken }).exec();
+    if (!user) {
+      throw errorHandler(401, "Invalid token");
+    }
+    if (user.verify === true) {
+      throw errorHandler(404, "Not Found");
+    }
+
+    await User.findByIdAndUpdate(user._id, {
+      verify: true,
+      verificationToken: null,
+    });
+    res.json({ message: "Verification successful" });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const login = async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
   if (!user) {
     throw errorHandler(401, "Email or password invalid");
+  }
+
+  if (user.verify !== true) {
+    throw errorHandler(401, "Please, verify your account");
   }
   const comparePassword = await bcrypt.compare(password, user.password);
   if (!comparePassword) {
@@ -105,8 +179,7 @@ const uploadAvatar = async (req, res, next) => {
     await fs.rename(fileNamePath, newFileNamePath);
 
     const avatarURL = path.join("avatars", fileName);
-    console.log(fileName);
-    console.log(avatarURL);
+
     const result = await User.findByIdAndUpdate(
       req.user.id,
       { avatarURL: avatarURL },
@@ -129,4 +202,6 @@ module.exports = {
   logOut: controllerWrapper(logOut),
   updateSubscriptionContact: controllerWrapper(updateSubscriptionContact),
   uploadAvatar: controllerWrapper(uploadAvatar),
+  verify: controllerWrapper(verify),
+  reverify: controllerWrapper(reverify),
 };

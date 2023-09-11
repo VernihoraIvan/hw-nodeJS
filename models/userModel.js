@@ -31,6 +31,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    verify: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      required: [true, "Verify token is required"],
+    },
   },
   { versionKey: false }
 );
@@ -52,7 +60,16 @@ const subscriptionSchema = Joi.object({
   subscription: Joi.string().valid("starter", "pro", "business").required(),
 });
 
-const schemas = { registerSchema, loginSchema, subscriptionSchema };
+const verifySchema = Joi.object({
+  email: Joi.string().pattern(EMAIL_PATTERN).required(),
+});
+
+const schemas = {
+  registerSchema,
+  loginSchema,
+  subscriptionSchema,
+  verifySchema,
+};
 const User = mongoose.model("users", userSchema);
 
 module.exports = { User, schemas };
